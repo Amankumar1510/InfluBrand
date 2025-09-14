@@ -1,0 +1,181 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Gen-Z Modern Design System for Influencer-Brand Platform */
+@layer base {
+  :root {
+    /* Core Brand Colors - HSL Format */
+    --background: 0 0% 100%;
+    --foreground: 221 39% 11%;
+    
+    /* Primary: Vibrant Violet */
+    --primary: 258 90% 66%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 258 100% 80%;
+    
+    /* Secondary: Energetic Amber */
+    --secondary: 43 96% 56%;
+    --secondary-foreground: 221 39% 11%;
+    --secondary-glow: 43 100% 70%;
+    
+    /* Neutral Palette */
+    --muted: 220 14% 96%;
+    --muted-foreground: 215 13% 65%;
+    --accent: 220 14% 96%;
+    --accent-foreground: 221 39% 11%;
+    
+    /* UI Elements */
+    --card: 0 0% 100%;
+    --card-foreground: 221 39% 11%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 258 90% 66%;
+    
+    /* Interactive States */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    --gradient-secondary: linear-gradient(135deg, hsl(var(--secondary)), hsl(var(--secondary-glow)));
+    --gradient-hero: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--secondary)) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(var(--card)) 0%, hsl(220 14% 98%) 100%);
+    
+    /* Shadows */
+    --shadow-soft: 0 4px 20px -2px hsl(var(--primary) / 0.1);
+    --shadow-glow: 0 8px 32px -8px hsl(var(--primary) / 0.3);
+    --shadow-card: 0 4px 12px -2px hsl(221 39% 11% / 0.08);
+    
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    
+    /* Missing CSS Variable */
+    --popover: 0 0% 100%;
+    --popover-foreground: 221 39% 11%;
+    
+    /* Sidebar Variables for Compatibility */
+    --sidebar-background: var(--background);
+    --sidebar-foreground: var(--foreground);
+    --sidebar-primary: var(--primary);
+    --sidebar-primary-foreground: var(--primary-foreground);
+    --sidebar-accent: var(--accent);
+    --sidebar-accent-foreground: var(--accent-foreground);
+    --sidebar-border: var(--border);
+    --sidebar-ring: var(--ring);
+    
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    /* Dark Mode Palette */
+    --background: 222 47% 7%;
+    --foreground: 220 14% 96%;
+    
+    --primary: 258 90% 66%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 258 100% 80%;
+    
+    --secondary: 43 96% 56%;
+    --secondary-foreground: 222 47% 7%;
+    --secondary-glow: 43 100% 70%;
+    
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 33% 17%;
+    --accent-foreground: 220 14% 96%;
+    
+    --card: 222 47% 7%;
+    --card-foreground: 220 14% 96%;
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 258 90% 66%;
+    
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 220 14% 96%;
+    
+    /* Missing CSS Variables for Dark Mode */
+    --popover: 222 47% 7%;
+    --popover-foreground: 220 14% 96%;
+    
+    /* Dark Mode Gradients */
+    --gradient-card: linear-gradient(145deg, hsl(var(--card)) 0%, hsl(217 33% 12%) 100%);
+    --shadow-card: 0 4px 12px -2px hsl(0 0% 0% / 0.3);
+    
+    /* Sidebar Variables for Dark Mode */
+    --sidebar-background: var(--background);
+    --sidebar-foreground: var(--foreground);
+    --sidebar-primary: var(--primary);
+    --sidebar-primary-foreground: var(--primary-foreground);
+    --sidebar-accent: var(--accent);
+    --sidebar-accent-foreground: var(--accent-foreground);
+    --sidebar-border: var(--border);
+    --sidebar-ring: var(--ring);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-inter antialiased;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-poppins font-semibold;
+  }
+}
+
+@layer components {
+  /* Hero Button Variant */
+  .btn-hero {
+    @apply bg-gradient-to-r from-primary to-secondary text-white font-poppins font-semibold rounded-2xl px-8 py-4 shadow-glow transition-all duration-300 hover:scale-105 hover:shadow-xl;
+  }
+  
+  /* Card Hover Effect */
+  .card-hover {
+    @apply transition-all duration-300 hover:scale-[1.02] hover:shadow-glow;
+  }
+  
+  /* Gradient Text */
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent;
+  }
+  
+  /* Profile Card */
+  .profile-card {
+    @apply bg-card rounded-2xl p-6 shadow-card border border-border/50 card-hover;
+  }
+  
+  /* Glass Effect */
+  .glass {
+    @apply bg-white/10 backdrop-blur-lg border border-white/20;
+  }
+}
+
+@layer utilities {
+  .shadow-soft {
+    box-shadow: var(--shadow-soft);
+  }
+  
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+  
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+  
+  .transition-smooth {
+    transition: var(--transition-smooth);
+  }
+  
+  .transition-bounce {
+    transition: var(--transition-bounce);
+  }
+}
