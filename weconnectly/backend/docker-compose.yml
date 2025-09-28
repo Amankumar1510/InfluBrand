@@ -1,0 +1,124 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: influbrand_postgres
+    environment:
+      POSTGRES_DB: influbrand_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - influbrand_network
+
+  # Redis for caching and background tasks
+  redis:
+    image: redis:7-alpine
+    container_name: influbrand_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - influbrand_network
+
+  # FastAPI Backend
+  backend:
+    build: .
+    container_name: influbrand_backend
+    environment:
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=influbrand_db
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=password
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - ENVIRONMENT=development
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./uploads:/app/uploads
+      - .:/app
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - influbrand_network
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Celery Worker (for background tasks)
+  celery_worker:
+    build: .
+    container_name: influbrand_celery_worker
+    environment:
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=influbrand_db
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=password
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    volumes:
+      - .:/app
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - influbrand_network
+    command: celery -A app.core.celery worker --loglevel=info
+
+  # Celery Beat (for scheduled tasks)
+  celery_beat:
+    build: .
+    container_name: influbrand_celery_beat
+    environment:
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=influbrand_db
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=password
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    volumes:
+      - .:/app
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - influbrand_network
+    command: celery -A app.core.celery beat --loglevel=info
+
+  # Nginx (optional, for production)
+  nginx:
+    image: nginx:alpine
+    container_name: influbrand_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - backend
+    networks:
+      - influbrand_network
+    profiles:
+      - production
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  influbrand_network:
+    driver: bridge
