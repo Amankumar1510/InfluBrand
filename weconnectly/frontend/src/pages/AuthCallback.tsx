@@ -31,14 +31,17 @@ const AuthCallback = () => {
                     setStatus('Checking your profile...')
                     await new Promise(resolve => setTimeout(resolve, 2000)) // Wait 2 seconds
 
-                    // Check if user has a complete profile
+                    // Check if user has a complete profile using direct table query
                     const { data: profileData, error: profileError } = await supabase
-                        .rpc('get_user_profile', { user_uuid: data.session.user.id })
+                        .from('user_profiles')
+                        .select('*')
+                        .eq('user_id', data.session.user.id)
+                        .single()
 
                     console.log('Profile data:', profileData)
                     console.log('Profile error:', profileError)
 
-                    if (profileError) {
+                    if (profileError && profileError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
                         console.error('Error fetching profile:', profileError)
                     }
 

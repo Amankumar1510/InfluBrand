@@ -6,61 +6,60 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { User, Building2, Upload, Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { User, Building2, Upload, Loader2, X, Instagram, Youtube, Twitter, Music } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { profileApi } from "@/services/profileApi";
 import { toast } from "sonner";
 import logo from "@/assets/logo.png";
 
 interface FormData {
   // Common fields
   username: string;
-  first_name: string;
-  last_name: string;
-  phone: string;
-  bio: string;
-  website: string;
-  location: string;
-
-  // Role-specific fields
   role: "influencer" | "brand";
 
   // Influencer fields
   display_name?: string;
-  primary_category?: string;
-  content_types?: string[];
-  languages?: string[];
-  years_experience?: number;
-  min_rate?: number;
-  max_rate?: number;
+  profile_picture?: string;
+  primary_platform?: "instagram" | "youtube" | "tiktok" | "twitter";
+  platform_username?: string;
+  categories?: string[];
+  bio?: string;
 
   // Brand fields
-  company_name?: string;
   brand_name?: string;
-  tagline?: string;
   description?: string;
-  company_size?: string;
+  logo?: string;
+  industry_categories?: string[];
+  website?: string;
+  social_link?: string;
   company_email?: string;
-  company_phone?: string;
-  headquarters_location?: string;
-  monthly_marketing_budget?: number;
 }
 
 const Onboarding = () => {
   const navigate = useNavigate();
   const { user, profile, refreshProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     username: "",
-    first_name: "",
-    last_name: "",
-    phone: "",
-    bio: "",
-    website: "",
-    location: "",
     role: "influencer",
-    content_types: [],
-    languages: ["English"]
+    // Influencer fields
+    display_name: "",
+    profile_picture: "",
+    primary_platform: undefined,
+    platform_username: "",
+    categories: [],
+    bio: "",
+    // Brand fields
+    brand_name: "",
+    description: "",
+    logo: "",
+    industry_categories: [],
+    website: "",
+    social_link: "",
+    company_email: ""
   });
 
   useEffect(() => {
@@ -75,9 +74,9 @@ const Onboarding = () => {
       const metadata = user.user_metadata;
       setFormData(prev => ({
         ...prev,
-        first_name: metadata.full_name?.split(' ')[0] || metadata.given_name || "",
-        last_name: metadata.full_name?.split(' ').slice(1).join(' ') || metadata.family_name || "",
         username: metadata.preferred_username || metadata.name || "",
+        display_name: metadata.full_name || metadata.name || "",
+        company_email: user.email || "",
       }));
     }
 
@@ -95,6 +94,61 @@ const Onboarding = () => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  // Helper functions for tags
+  const handleTagAdd = (field: 'categories' | 'industry_categories', tag: string) => {
+    if (tag.trim()) {
+      const currentTags = formData[field] || [];
+      if (!currentTags.includes(tag.trim())) {
+        handleInputChange(field, [...currentTags, tag.trim()]);
+      }
+    }
+  };
+
+  const handleTagRemove = (field: 'categories' | 'industry_categories', tagToRemove: string) => {
+    const currentTags = formData[field] || [];
+    handleInputChange(field, currentTags.filter(tag => tag !== tagToRemove));
+  };
+
+  const handleTagKeyPress = (e: React.KeyboardEvent<HTMLInputElement>, field: 'categories' | 'industry_categories') => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const input = e.currentTarget;
+      handleTagAdd(field, input.value);
+      input.value = '';
+    }
+  };
+
+  // File upload handler
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'profile_picture' | 'logo') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Please upload a JPEG, PNG, or WebP image');
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be less than 5MB');
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const imageUrl = await profileApi.uploadImage(file);
+      handleInputChange(field, imageUrl);
+      toast.success('Image uploaded successfully!');
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      toast.error('Failed to upload image');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -106,166 +160,63 @@ const Onboarding = () => {
     setIsLoading(true);
 
     try {
-      // Update user profile (may already exist from trigger)
-      const profileData = {
-        username: formData.username,
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        phone: formData.phone,
-        bio: formData.bio,
-        website: formData.website,
-        location: formData.location,
-        role: formData.role,
-        avatar_url: user.user_metadata?.avatar_url || null
-      };
-
-      const { error: profileError } = await supabase
-        .from('user_profiles')
-        .upsert({
-          user_id: user.id,
-          ...profileData
-        }, {
-          onConflict: 'user_id'
-        });
-
-      if (profileError) {
-        console.error('Profile update error:', profileError);
-        throw profileError;
+      // Validation
+      if (!formData.username.trim()) {
+        toast.error("Username is required");
+        return;
       }
 
-      // Update role-specific profile
       if (formData.role === 'influencer') {
-        // Map frontend categories to database enums
-        const mapToContentCategory = (category: string) => {
-          const categoryMap: Record<string, string> = {
-            'Fashion & Beauty': 'fashion_beauty',
-            'Technology': 'technology',
-            'Fitness & Health': 'fitness_health',
-            'Food & Cooking': 'food_cooking',
-            'Travel': 'travel',
-            'Gaming': 'gaming',
-            'Entertainment': 'entertainment',
-            'Education': 'education',
-            'Lifestyle': 'lifestyle',
-            'Parenting': 'parenting',
-            'Business': 'business',
-            'Art & Design': 'art_design',
-            'Music': 'music',
-            'Sports': 'sports',
-            'Home & Garden': 'home_garden',
-            'Automotive': 'automotive',
-            'Pets': 'pets'
-          };
-          return categoryMap[category] || 'other';
-        };
-
-        const influencerData = {
-          user_id: user.id,
-          display_name: formData.display_name || formData.first_name,
-          primary_category: mapToContentCategory(formData.primary_category || ''),
-          content_types: formData.content_types || [],
-          languages: formData.languages || ['en'],
-          years_experience: formData.years_experience || null,
-          min_rate: formData.min_rate || null,
-          max_rate: formData.max_rate || null,
-          rate_currency: 'USD'
-        };
-
-        const { error: influencerError } = await supabase
-          .from('influencers')
-          .upsert(influencerData, {
-            onConflict: 'user_id'
-          });
-
-        if (influencerError) {
-          console.error('Influencer profile error:', influencerError);
-          throw influencerError;
+        if (!formData.display_name?.trim()) {
+          toast.error("Display name is required");
+          return;
         }
-      } else if (formData.role === 'brand') {
-        // Map frontend categories to database enums
-        const mapToBrandCategory = (category: string) => {
-          const categoryMap: Record<string, string> = {
-            'Fashion & Beauty': 'fashion_beauty',
-            'Technology': 'technology',
-            'Food & Beverage': 'food_beverage',
-            'Fitness & Health': 'fitness_health',
-            'Travel & Tourism': 'travel_tourism',
-            'Gaming': 'gaming',
-            'Entertainment': 'entertainment',
-            'Education': 'education',
-            'Lifestyle': 'lifestyle',
-            'Home & Garden': 'home_garden',
-            'Automotive': 'automotive',
-            'Finance': 'finance',
-            'Real Estate': 'real_estate',
-            'Healthcare': 'healthcare',
-            'B2B Services': 'b2b_services',
-            'Retail': 'retail',
-            'Sports': 'sports',
-            'Pets': 'pets'
-          };
-          return categoryMap[category] || 'other';
-        };
-
-        const brandData = {
-          user_id: user.id,
-          company_name: formData.company_name || 'Unnamed Company',
-          brand_name: formData.brand_name || null,
-          tagline: formData.tagline || null,
-          description: formData.description || null,
-          primary_category: mapToBrandCategory(formData.primary_category || ''),
-          company_size: formData.company_size || null,
-          company_email: formData.company_email || null,
-          company_phone: formData.company_phone || null,
-          headquarters_location: formData.headquarters_location || null,
-          monthly_marketing_budget: formData.monthly_marketing_budget || null,
-          budget_currency: 'USD'
-        };
-
-        const { error: brandError } = await supabase
-          .from('brands')
-          .upsert(brandData, {
-            onConflict: 'user_id'
-          });
-
-        if (brandError) {
-          console.error('Brand profile error:', brandError);
-          throw brandError;
+        if (!formData.primary_platform) {
+          toast.error("Please select a primary platform");
+          return;
         }
-
-        // Ensure brand profile exists
-        const { data: brandData_result } = await supabase
-          .from('brands')
-          .select('id')
-          .eq('user_id', user.id)
-          .single();
-
-        if (brandData_result?.id) {
-          const { error: brandProfileError } = await supabase
-            .from('brand_profiles')
-            .upsert({
-              brand_id: brandData_result.id
-            }, {
-              onConflict: 'brand_id'
-            });
-
-          if (brandProfileError) {
-            console.error('Brand profile creation error:', brandProfileError);
-            // Don't throw here as it's not critical
-          }
+        if (!formData.platform_username?.trim()) {
+          toast.error("Platform username is required");
+          return;
         }
-      }
-
-      // Refresh the profile
-      await refreshProfile();
-
-      toast.success("Profile created successfully!");
-
-      // Navigate based on role
-      if (formData.role === 'influencer') {
-        navigate('/brand-discovery');
+        if (!formData.categories?.length) {
+          toast.error("Please add at least one category");
+          return;
+        }
+        if (!formData.bio?.trim()) {
+          toast.error("Bio is required");
+          return;
+        }
       } else {
-        navigate('/influencer-discovery');
+        if (!formData.brand_name?.trim()) {
+          toast.error("Brand name is required");
+          return;
+        }
+        if (!formData.description?.trim()) {
+          toast.error("Description is required");
+          return;
+        }
+        if (!formData.industry_categories?.length) {
+          toast.error("Please add at least one industry category");
+          return;
+        }
+      }
+
+      // Use the profile API to create the profile
+      const result = await profileApi.createProfileDirect(formData, user);
+
+      if (result.success) {
+        // Refresh the profile
+        await refreshProfile();
+
+        toast.success("Profile created successfully!");
+
+        // Navigate based on role
+        if (formData.role === 'influencer') {
+          navigate('/brand-discovery');
+        } else {
+          navigate('/influencer-discovery');
+        }
       }
     } catch (error) {
       console.error('Profile creation error:', error);
@@ -322,146 +273,153 @@ const Onboarding = () => {
         {/* Form */}
         <Card className="p-8 shadow-glow border-0 bg-card/80 backdrop-blur-sm">
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Common Username */}
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                placeholder="@yourusername"
+                value={formData.username}
+                onChange={(e) => handleInputChange("username", e.target.value)}
+                required
+              />
+              <p className="text-xs text-muted-foreground">Unique handle inside the platform</p>
+            </div>
+
             {formData.role === "influencer" ? (
               <>
+                {/* Profile Picture - At the top */}
+                <div className="space-y-2">
+                  <Label>Profile Picture</Label>
+                  <div className="flex items-center gap-4">
+                    {formData.profile_picture && (
+                      <img
+                        src={formData.profile_picture}
+                        alt="Profile"
+                        className="w-16 h-16 rounded-full object-cover"
+                      />
+                    )}
+                    <div className="flex-1">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleFileUpload(e, 'profile_picture')}
+                        className="hidden"
+                        id="profile-upload"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => document.getElementById('profile-upload')?.click()}
+                        disabled={uploadingImage}
+                      >
+                        {uploadingImage ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+                        Upload from Device
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Upload your profile picture from your device</p>
+                </div>
+
+                {/* Display Name */}
+                <div className="space-y-2">
+                  <Label htmlFor="display_name">Display Name</Label>
+                  <Input
+                    id="display_name"
+                    placeholder="Your display name"
+                    value={formData.display_name || ""}
+                    onChange={(e) => handleInputChange("display_name", e.target.value)}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">Auto-filled from Google, but editable</p>
+                </div>
+
+                {/* Primary Platform */}
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label htmlFor="username">Username</Label>
+                    <Label htmlFor="primary_platform">Primary Platform</Label>
+                    <Select
+                      value={formData.primary_platform || ""}
+                      onValueChange={(value) => handleInputChange("primary_platform", value as any)}
+                      required
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose your main platform" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="instagram">
+                          <div className="flex items-center gap-2">
+                            <Instagram className="w-4 h-4" />
+                            Instagram
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="youtube">
+                          <div className="flex items-center gap-2">
+                            <Youtube className="w-4 h-4" />
+                            YouTube
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="tiktok">
+                          <div className="flex items-center gap-2">
+                            <Music className="w-4 h-4" />
+                            TikTok
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="twitter">
+                          <div className="flex items-center gap-2">
+                            <Twitter className="w-4 h-4" />
+                            Twitter/X
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="platform_username">Platform Username</Label>
                     <Input
-                      id="username"
-                      placeholder="@johndoe"
-                      value={formData.username}
-                      onChange={(e) => handleInputChange("username", e.target.value)}
+                      id="platform_username"
+                      placeholder="@yourhandle"
+                      value={formData.platform_username || ""}
+                      onChange={(e) => handleInputChange("platform_username", e.target.value)}
                       required
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="display_name">Display Name</Label>
-                    <Input
-                      id="display_name"
-                      placeholder="Your display name"
-                      value={formData.display_name || ""}
-                      onChange={(e) => handleInputChange("display_name", e.target.value)}
-                    />
-                  </div>
                 </div>
 
+                {/* Categories */}
                 <div className="space-y-2">
-                  <Label htmlFor="profilePic">Profile Picture</Label>
-                  <div className="flex items-center gap-4">
-                    <Button type="button" variant="outline" size="sm">
-                      <Upload className="w-4 h-4" />
-                      Upload Photo
-                    </Button>
-                    <span className="text-sm text-muted-foreground">JPG, PNG up to 5MB</span>
+                  <Label htmlFor="categories">Category/Niche</Label>
+                  <Input
+                    id="categories"
+                    placeholder="Type a category and press Enter (e.g., Fashion, Tech, Food)"
+                    onKeyPress={(e) => handleTagKeyPress(e, 'categories')}
+                  />
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {formData.categories?.map((category, index) => (
+                      <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                        {category}
+                        <X
+                          className="w-3 h-3 cursor-pointer hover:text-destructive"
+                          onClick={() => handleTagRemove('categories', category)}
+                        />
+                      </Badge>
+                    ))}
                   </div>
+                  <p className="text-xs text-muted-foreground">At least one category is required</p>
                 </div>
 
+                {/* Bio */}
                 <div className="space-y-2">
                   <Label htmlFor="bio">Bio</Label>
                   <Textarea
                     id="bio"
-                    placeholder="Tell us about yourself and your content style..."
-                    className="min-h-[100px]"
-                    value={formData.bio}
+                    placeholder="Tell us about yourself..."
+                    rows={4}
+                    value={formData.bio || ""}
                     onChange={(e) => handleInputChange("bio", e.target.value)}
                     required
                   />
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="contact">Contact Number</Label>
-                    <Input
-                      id="contact"
-                      type="tel"
-                      placeholder="+1 (555) 123-4567"
-                      value={formData.phone}
-                      onChange={(e) => handleInputChange("phone", e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="website">Website</Label>
-                    <Input
-                      id="website"
-                      type="url"
-                      placeholder="https://yourwebsite.com"
-                      value={formData.website}
-                      onChange={(e) => handleInputChange("website", e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="location">Location</Label>
-                    <Input
-                      id="location"
-                      placeholder="City, Country"
-                      value={formData.location}
-                      onChange={(e) => handleInputChange("location", e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="category">Content Category</Label>
-                    <Select
-                      value={formData.primary_category || ""}
-                      onValueChange={(value) => handleInputChange("primary_category", value)}
-                      required
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select your niche" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Entertainment">Entertainment</SelectItem>
-                        <SelectItem value="Fashion & Beauty">Fashion & Beauty</SelectItem>
-                        <SelectItem value="Gaming">Gaming</SelectItem>
-                        <SelectItem value="Education">Education</SelectItem>
-                        <SelectItem value="Fitness & Health">Fitness & Health</SelectItem>
-                        <SelectItem value="Food & Cooking">Food & Cooking</SelectItem>
-                        <SelectItem value="Travel">Travel</SelectItem>
-                        <SelectItem value="Technology">Technology</SelectItem>
-                        <SelectItem value="Lifestyle">Lifestyle</SelectItem>
-                        <SelectItem value="Music">Music</SelectItem>
-                        <SelectItem value="Sports">Sports</SelectItem>
-                        <SelectItem value="Art & Design">Art & Design</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="experience">Years of Experience</Label>
-                    <Input
-                      id="experience"
-                      type="number"
-                      placeholder="3"
-                      min="0"
-                      value={formData.years_experience || ""}
-                      onChange={(e) => handleInputChange("years_experience", parseInt(e.target.value) || 0)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="range">Rate Range ($)</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="Min"
-                        type="number"
-                        min="0"
-                        value={formData.min_rate || ""}
-                        onChange={(e) => handleInputChange("min_rate", parseInt(e.target.value) || 0)}
-                      />
-                      <Input
-                        placeholder="Max"
-                        type="number"
-                        min="0"
-                        value={formData.max_rate || ""}
-                        onChange={(e) => handleInputChange("max_rate", parseInt(e.target.value) || 0)}
-                      />
-                    </div>
-                  </div>
                 </div>
               </>
             ) : (

@@ -65,15 +65,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const fetchUserProfile = async (userId: string) => {
         try {
             const { data, error } = await supabase
-                .rpc('get_user_profile', { user_uuid: userId })
+                .from('user_profiles')
+                .select('*')
+                .eq('user_id', userId)
+                .single()
 
-            if (error) {
+            if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
                 console.error('Error fetching profile:', error)
                 return
             }
 
             if (data) {
                 setProfile(data)
+            } else {
+                console.log('No profile found for user:', userId)
+                setProfile(null)
             }
         } catch (error) {
             console.error('Error in fetchUserProfile:', error)

@@ -4,7 +4,9 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Filter, Building2, Globe, Star } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 import logo from "@/assets/logo.png";
 
 // Mock data for brands
@@ -67,7 +69,7 @@ const mockBrands = [
   {
     id: 6,
     name: "EcoLife",
-    tagline: "Sustainable Living Made Easy", 
+    tagline: "Sustainable Living Made Easy",
     category: "Lifestyle",
     targetAudience: "Eco-Conscious Consumers",
     logo: "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=100&h=100&fit=crop",
@@ -78,13 +80,30 @@ const mockBrands = [
 ];
 
 const BrandDiscovery = () => {
+  const navigate = useNavigate();
+  const { user, profile, signOut } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedAudience, setSelectedAudience] = useState("");
 
+  const handleProfileClick = () => {
+    navigate('/influencer/profile');
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      toast.success("Successfully logged out");
+      navigate('/');
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast.error("Failed to logout");
+    }
+  };
+
   const filteredBrands = mockBrands.filter(brand => {
     const matchesSearch = brand.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         brand.tagline.toLowerCase().includes(searchTerm.toLowerCase());
+      brand.tagline.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === "all-categories" || !selectedCategory || brand.category === selectedCategory;
     const matchesAudience = selectedAudience === "all-audiences" || !selectedAudience || brand.targetAudience.toLowerCase().includes(selectedAudience.toLowerCase());
     return matchesSearch && matchesCategory && matchesAudience;
@@ -101,9 +120,11 @@ const BrandDiscovery = () => {
               <h1 className="text-xl font-poppins font-bold text-gradient">CollabHub</h1>
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-sm text-muted-foreground">Welcome back, @fashionista_emma</span>
-              <Button variant="ghost" size="sm">Profile</Button>
-              <Button variant="outline" size="sm">Logout</Button>
+              <span className="text-sm text-muted-foreground">
+                Welcome back, {profile?.first_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'User'}
+              </span>
+              <Button variant="ghost" size="sm" onClick={handleProfileClick}>Profile</Button>
+              <Button variant="outline" size="sm" onClick={handleLogout}>Logout</Button>
             </div>
           </div>
         </div>
@@ -132,7 +153,7 @@ const BrandDiscovery = () => {
                 className="pl-10"
               />
             </div>
-            
+
             <Select value={selectedCategory} onValueChange={setSelectedCategory}>
               <SelectTrigger className="w-full lg:w-48">
                 <Filter className="w-4 h-4 mr-2" />

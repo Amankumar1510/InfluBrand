@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import AuthDebug from "@/components/AuthDebug";
+import AuthTester from "@/components/AuthTester";
 import logo from "@/assets/logo.png";
 
 const SignIn = () => {
@@ -14,10 +15,15 @@ const SignIn = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { signInWithGoogle, user, profile, loading } = useAuth();
 
-  // Check if user is already authenticated
+  // Check if user is already authenticated (temporarily disabled for debugging)
   useEffect(() => {
     if (!loading && user) {
       console.log('User already authenticated:', user);
+      console.log('Profile state:', profile);
+
+      // Temporarily disable automatic redirect to debug the flow
+      // TODO: Re-enable after debugging
+      /*
       if (profile && profile.role) {
         console.log('Profile exists, redirecting based on role:', profile.role);
         // User has completed profile, redirect to appropriate page
@@ -31,6 +37,7 @@ const SignIn = () => {
         // User exists but profile incomplete, go to onboarding
         navigate('/onboarding');
       }
+      */
     }
   }, [user, profile, loading, navigate]);
 
@@ -49,6 +56,7 @@ const SignIn = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background flex items-center justify-center p-4">
       <AuthDebug />
+      <AuthTester />
       <Card className="w-full max-w-md p-8 text-center space-y-8 shadow-glow border-0 bg-card/80 backdrop-blur-sm">
         {/* Logo & Branding */}
         <div className="space-y-4">
@@ -98,6 +106,28 @@ const SignIn = () => {
             )}
             {isLoading ? "Signing in..." : "Continue with Google"}
           </Button>
+
+          {/* Temporary debug buttons */}
+          {import.meta.env.DEV && (
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/onboarding')}
+                className="text-xs"
+              >
+                Test Onboarding
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/auth/callback')}
+                className="text-xs"
+              >
+                Test Callback
+              </Button>
+            </div>
+          )}
 
           <p className="text-xs text-muted-foreground">
             By continuing, you agree to our{" "}

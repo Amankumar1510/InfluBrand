@@ -6,6 +6,7 @@ from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
     auth,
+    profiles,
     # users,
     # influencers,
     # brands,
@@ -21,8 +22,9 @@ from app.api.v1.endpoints import (
 
 api_router = APIRouter()
 
-# Include authentication router only for now
+# Include authentication and profiles routers
 api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
+api_router.include_router(profiles.router, prefix="/profiles", tags=["Profiles"])
 
 # Other routers commented out - focusing on authentication first
 # api_router.include_router(users.router, prefix="/users", tags=["Users"])

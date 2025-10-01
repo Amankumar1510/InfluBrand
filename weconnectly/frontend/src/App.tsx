@@ -30,6 +30,7 @@ const App = () => (
             <Route path="/influencer-discovery" element={<InfluencerDiscovery />} />
             <Route path="/brand-discovery" element={<BrandDiscovery />} />
             <Route path="/influencer/:id" element={<InfluencerProfile />} />
+            <Route path="/influencer/profile" element={<InfluencerProfile />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
